@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hyper-i — Touchless Identity Verification</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@700,900,500&display=swap">
+  <style>
+    :root {
+      --heading: #151515;
+      --body-text: #242424;
+      --body-subtle: #5c5c5c;
+      --accent: #832573;
+      --accent-soft: #CDD7FB;
+      --ring-color: #CDD7FB;
+      --canvas: #ffffff;
+      --panel: #fbf8fb;
+      --stage-scale: min(calc(100vw / 1352px), calc(100vh / 750px), 1.065);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      background: var(--canvas);
+      color: var(--body-text);
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    @property --progress {
+      syntax: '<number>';
+      inherits: true;
+      initial-value: 0;
+    }
+
+    /* ---------- Hero ---------- */
+    .hero-pin {
+      position: relative;
+      height: 260vh;
+    }
+
+    .hero {
+      min-height: 100vh;
+      padding: 32px 0;
+      display: grid;
+      place-items: center;
+      position: sticky;
+      top: 0;
+      overflow: hidden;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .stage {
+      width: calc(1200px * var(--stage-scale));
+      height: calc(675px * var(--stage-scale));
+      grid-area: 1 / 1;
+      position: relative;
+      overflow: visible;
+    }
+
+    .rings {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+    }
+
+    .ring {
+      stroke: url(#hpx-ring-fade);
+      stroke-width: 1px;
+      fill: none;
+    }
+
+    .ring-accent {
+      stroke: url(#hpx-accent-gradient);
+      stroke-width: 1.75px;
+      stroke-linecap: round;
+      fill: none;
+    }
+
+    .orbit-logo {
+      --a-now: calc(var(--a) + var(--progress) * 8deg * var(--dir));
+      --reveal: clamp(0, calc((var(--progress) - var(--swap)) / .18), 1);
+      --exit: clamp(0, calc((var(--progress) - 0.65) / 0.28), 1);
+      --r-now: calc(var(--r) * (1 - var(--exit) * 0.55));
+      --y-dive: calc(var(--exit) * 260px * var(--stage-scale));
+      position: absolute;
+      width: calc(var(--size) * var(--stage-scale));
+      height: calc(var(--size) * var(--stage-scale));
+      left: calc(50% + var(--r-now) * var(--stage-scale) * cos(var(--a-now)) - (var(--size) * var(--stage-scale)) / 2);
+      top: calc(50% + var(--r-now) * var(--stage-scale) * sin(var(--a-now)) - (var(--size) * var(--stage-scale)) / 2 - 16px * var(--stage-scale) + var(--y-dive));
+      border-radius: 50%;
+      background: var(--canvas);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 calc(20px * var(--stage-scale)) calc(48px * var(--stage-scale)) rgba(21, 21, 21, .09),
+        0 calc(6px * var(--stage-scale)) calc(16px * var(--stage-scale)) rgba(21, 21, 21, .06),
+        0 calc(1px * var(--stage-scale)) calc(3px * var(--stage-scale)) rgba(21, 21, 21, .05);
+      outline: 2px solid color-mix(in srgb, var(--accent) calc(var(--reveal) * (1 - var(--exit)) * 60%), transparent);
+      outline-offset: calc(3px * var(--stage-scale));
+      opacity: calc(1 - var(--exit));
+      transform: scale(calc((0.92 + var(--reveal) * 0.08) * (1 - var(--exit) * 0.55)));
+      transition: transform .2s ease, opacity .2s ease, outline-color .2s ease;
+    }
+
+    .orbit-logo svg {
+      width: 55%;
+      height: 55%;
+    }
+
+    .orbit-name {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-top: calc(10px * var(--stage-scale));
+      padding: 6px 10px;
+      width: max-content;
+      max-width: 104px;
+      border-radius: 10px;
+      background: var(--canvas);
+      border: 1px solid #e4e9f5;
+      box-shadow: 0 8px 20px rgba(21, 21, 21, .08);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.25;
+      color: var(--heading);
+      text-align: center;
+      white-space: normal;
+      pointer-events: none;
+      z-index: 2;
+      opacity: calc(var(--reveal) * (1 - var(--exit)));
+      transform: translate(-50%, calc((1 - var(--reveal) + var(--exit) * 0.5) * 10px));
+      transition: opacity .25s ease, transform .25s ease;
+    }
+
+    /* ---------- Content ---------- */
+    .content {
+      grid-area: 1 / 1;
+      z-index: 1;
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      text-align: center;
+    }
+
+    @keyframes fadeUpEntrance {
+      0% {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .content>* {
+      opacity: 0;
+      animation: fadeUpEntrance 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+
+    .content> :nth-child(1) {
+      animation-delay: 0.1s;
+    }
+
+    .content> :nth-child(2) {
+      animation-delay: 0.25s;
+    }
+
+    .content> :nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    .content> :nth-child(4) {
+      animation-delay: 0.55s;
+    }
+
+    .content> :nth-child(5) {
+      animation-delay: 0.7s;
+    }
+
+    .headlines {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      font-family: 'Satoshi', ui-sans-serif, system-ui, sans-serif;
+      font-weight: 700;
+      font-size: calc(57px * var(--stage-scale));
+      line-height: calc(68px * var(--stage-scale));
+      letter-spacing: -0.02em;
+    }
+
+    .h1 {
+      color: var(--heading);
+    }
+
+    .h1-light {
+      color: var(--body-subtle);
+      font-weight: 500;
+    }
+
+    .body-copy {
+      color: var(--body-text);
+      font-size: 19px;
+      line-height: 1.55;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .stats {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px 24px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .stats li {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stat-value {
+      background: var(--panel);
+      border-radius: 999px;
+      min-width: 56px;
+      height: 56px;
+      padding: 0 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Satoshi', ui-sans-serif, system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      white-space: nowrap;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: var(--body-subtle);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .cta-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .btn {
+      appearance: none;
+      border-radius: 8px;
+      height: 48px;
+      padding: 0 28px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+    }
+
+    .btn.is-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .btn.is-primary:hover {
+      background: #0842bd;
+      border-color: #0842bd;
+    }
+
+    .btn.is-outline {
+      background: transparent;
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .btn.is-outline:hover {
+      background: rgba(10, 79, 223, .06);
+    }
+
+    @media (max-width:900px) {
+      .hero-pin {
+        height: auto;
+      }
+
+      .hero {
+        position: static;
+        min-height: 0;
+        padding: 48px 20px;
+      }
+
+      .stage {
+        display: none;
+      }
+
+      .content {
+        align-items: flex-start;
+        text-align: left;
+        max-width: 100%;
+      }
+
+      .headlines {
+        font-size: 36px;
+        line-height: 1.15;
+      }
+
+      .body-copy {
+        text-align: left;
+        max-width: 100%;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 100%;
+      }
+
+      .cta-row {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+
+      .orbit-logo,
+      .orbit-name {
+        transition: none;
+      }
+    }
+
+    /* ---------- Feature story ---------- */
+    .sidebar-anim {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 79, 223, 0.04);
+      border-radius: 14px;
+      border: 1px solid rgba(10, 79, 223, 0.15);
+      box-shadow: 0 8px 24px rgba(10, 79, 223, 0.08);
+    }
+
+    .sa-ring {
+      position: absolute;
+      inset: -1px;
+      border-radius: 15px;
+      border: 1.5px solid #0a4fdf;
+      opacity: 0;
+      animation: sa-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .sa-ring-2 {
+      animation-delay: 1.5s;
+      border-color: #00e5ff;
+    }
+
+    .sa-icon {
+      width: 28px;
+      height: 28px;
+      animation: sa-float 4s ease-in-out infinite;
+    }
+
+    @keyframes sa-pulse {
+      0% {
+        transform: scale(0.9);
+        opacity: 0.6;
+      }
+
+      100% {
+        transform: scale(1.4);
+        opacity: 0;
+      }
+    }
+
+    @keyframes sa-float {
+
+      0%,
+      100% {
+        transform: translateY(0) scale(1);
+        filter: drop-shadow(0 0 6px rgba(10, 79, 223, 0.3));
+      }
+
+      50% {
+        transform: translateY(-3px) scale(1.05);
+        filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.6));
+      }
+    }
+
+    /* ---------- Card Animations ---------- */
+    .fs-preview {
+      perspective: 1000px;
+    }
+
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(10, 79, 223, 0.2) 1px, transparent 1px);
+      background-size: 24px 24px;
+      opacity: 0.6;
+      z-index: 0;
+    }
+
+    /* Biometrics */
+    .bio-scanner {
+      position: relative;
+      z-index: 2;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 2px dashed rgba(10, 79, 223, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: spin-slow 12s linear infinite;
+    }
+
+    .bio-core {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0a4fdf, #a259ff);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse-glow 2s infinite alternate;
+    }
+
+    .bio-card-left,
+    .bio-card-right {
+      position: absolute;
+      z-index: 2;
+      background: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--heading);
+      animation: float-up-down 4s ease-in-out infinite;
+    }
+
+    .bio-card-left {
+      left: 15%;
+      top: 30%;
+    }
+
+    .bio-card-right {
+      right: 15%;
+      bottom: 30%;
+      animation-delay: 1.5s;
+    }
+
+    .scan-line-wide {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #00e5ff;
+      box-shadow: 0 0 20px 2px #00e5ff;
+      animation: scan-wide 3s ease-in-out infinite alternate;
+      z-index: 3;
+    }
+
+    /* Liveness */
+    .live-main {
+      position: relative;
+      z-index: 2;
+      width: 260px;
+      transform: translateX(-15%);
+    }
+
+    .live-card-2 {
+      position: absolute;
+      right: 10%;
+      top: 35%;
+      background: #fff;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+      width: 180px;
+      animation: float-up-down 3.5s ease-in-out infinite 0.5s;
+      z-index: 3;
+    }
+
+    .live-bar-fill {
+      animation: fill-bar 3s ease-out forwards infinite;
+    }
+
+    /* OCR */
+    .ocr-id {
+      position: relative;
+      width: 280px;
+      height: 170px;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border-radius: 12px;
+      padding: 24px;
+      color: #fff;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      animation: tilt-3d 6s ease-in-out infinite alternate;
+      z-index: 2;
+      overflow: hidden;
+    }
+
+    .ocr-laser {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -10px;
+      width: 4px;
+      background: #00e5ff;
+      box-shadow: 0 0 20px 4px rgba(0, 229, 255, 0.6);
+      animation: laser-scan 2.5s ease-in-out infinite;
+      z-index: 3;
+    }
+
+    .ocr-pill {
+      position: absolute;
+      background: #fff;
+      padding: 10px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #0a4fdf;
+      box-shadow: 0 10px 24px rgba(10, 79, 223, 0.15);
+      z-index: 1;
+      animation: pop-in-out 4s ease-in-out infinite;
+    }
+
+    .ocr-pill-1 {
+      top: 25%;
+      right: 10%;
+    }
+
+    .ocr-pill-2 {
+      bottom: 25%;
+      left: 10%;
+      animation-delay: 2s;
+    }
+
+    /* Fraud */
+    .fraud-node {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #a259ff;
+      box-shadow: 0 0 15px #a259ff;
+      animation: node-pulse 2s infinite alternate;
+    }
+
+    .fraud-main {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 24px;
+      border-radius: 16px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      animation: float-up-down 5s ease-in-out infinite;
+    }
+
+    @keyframes spin-slow {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes pulse-glow {
+      0% {
+        box-shadow: 0 0 0 0 rgba(10, 79, 223, 0.4);
+      }
+
+      100% {
+        box-shadow: 0 0 0 25px rgba(10, 79, 223, 0);
+      }
+    }
+
+    @keyframes float-up-down {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-12px);
+      }
+    }
+
+    @keyframes scan-wide {
+      0% {
+        top: 10%;
+      }
+
+      100% {
+        top: 90%;
+      }
+    }
+
+    @keyframes fill-bar {
+      0% {
+        width: 0%;
+      }
+
+      20%,
+      100% {
+        width: var(--fill);
+      }
+    }
+
+    @keyframes tilt-3d {
+      0% {
+        transform: rotateY(-18deg) rotateX(12deg);
+      }
+
+      100% {
+        transform: rotateY(18deg) rotateX(-8deg);
+      }
+    }
+
+    @keyframes laser-scan {
+      0% {
+        left: -10%;
+      }
+
+      100% {
+        left: 110%;
+      }
+    }
+
+    @keyframes pop-in-out {
+
+      0%,
+      100% {
+        transform: scale(0.9);
+        opacity: 0.6;
+      }
+
+      50% {
+        transform: scale(1.05);
+        opacity: 1;
+      }
+    }
+
+    @keyframes node-pulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.5;
+      }
+
+      100% {
+        transform: scale(1.6);
+        opacity: 1;
+      }
+    }
+
+    .feature-story {
+      position: relative;
+      z-index: 10;
+      background: var(--canvas);
+      padding: 96px 20px 120px;
+      border-top: 1px solid #eef1f8;
+    }
+
+    .fs-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 480px 1fr;
+      gap: 100px;
+      align-items: start;
+    }
+
+    .fs-sidebar {
+      position: sticky;
+      top: 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .fs-sidebar h2 {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      font-weight: 600;
+      font-size: 40px;
+      line-height: 1.2;
+      color: var(--heading);
+      margin: 0;
+    }
+
+    .fs-sidebar p {
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--body-subtle);
+      max-width: 460px;
+      margin: 0;
+    }
+
+    .fs-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 12px;
+    }
+
+    .fs-nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--body-subtle);
+      text-decoration: none;
+      transition: background-color .15s ease, color .15s ease;
+    }
+
+    .fs-nav a:hover {
+      background: var(--panel);
+      color: var(--heading);
+    }
+
+    .fs-nav a .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: .4;
+      flex: none;
+    }
+
+    .fs-stories {
+      display: flex;
+      flex-direction: column;
+      gap: 96px;
+    }
+
+    .fs-story {
+      opacity: 0;
+      transform: translateY(50px);
+      transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .fs-story.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .fs-story h3 {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      font-weight: 600;
+      font-size: 28px;
+      color: var(--heading);
+      margin: 28px 0 10px;
+    }
+
+    .fs-story p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--body-subtle);
+      max-width: 480px;
+      margin: 0 0 10px;
+    }
+
+    .fs-tags {
+      font-size: 12px;
+      color: #767676;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .fs-tags span {
+      opacity: .6;
+    }
+
+    .fs-preview {
+      position: relative;
+      background: color-mix(in srgb, var(--ring-color) 20%, transparent);
+      border-radius: 12px;
+      padding: 24px;
+      min-height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      overflow: hidden;
+    }
+
+    .fs-floatcard {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px;
+      width: 200px;
+      flex: none;
+      box-shadow: 0 12px 30px rgba(21, 21, 21, .12);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .fs-floatcard .fs-fc-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--heading);
+    }
+
+    .fs-floatcard .fs-fc-sub {
+      font-size: 12px;
+      color: var(--body-subtle);
+      line-height: 1.4;
+    }
+
+    .fs-floatcard .fs-fc-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .fs-mini-btn {
+      flex: 1;
+      border-radius: 6px;
+      padding: 6px 0;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: #fff;
+    }
+
+    .fs-mini-btn.is-solid {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Color palette mockup */
+    .fs-colorcard {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px;
+      width: 220px;
+      flex: none;
+      box-shadow: 0 12px 30px rgba(21, 21, 21, .08);
+    }
+
+    .fs-hue {
+      height: 80px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #ff004c, #ff9900, #ffe600, #39ff14, #00e5ff, #2d63e6, #a259ff, #ff004c);
+      position: relative;
+      margin-bottom: 10px;
+    }
+
+    .fs-hue::after {
+      content: '';
+      position: absolute;
+      left: 62%;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, .2);
+      transform: translate(-50%, -50%);
+    }
+
+    .fs-swatchrow {
+      display: flex;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--body-subtle);
+      margin-bottom: 8px;
+    }
+
+    .fs-swatchrow span {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--panel);
+    }
+
+    .fs-swatchrow span.is-on {
+      background: var(--heading);
+      color: #fff;
+    }
+
+    .fs-hexrow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--heading);
+    }
+
+    .fs-hexrow .fs-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      background: #235cd7;
+    }
+
+    /* Typography mockup */
+    .fs-fontlist {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+      width: 180px;
+      flex: none;
+      box-shadow: 0 12px 30px rgba(21, 21, 21, .08);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .fs-fontlist span {
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      color: var(--body-text);
+    }
+
+    .fs-fontlist span.is-active {
+      background: var(--panel);
+      font-weight: 600;
+      color: var(--heading);
+    }
+
+    /* AI skills mockup */
+    .fs-chatbar {
+      background: #fff;
+      border-radius: 999px;
+      padding: 14px 20px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 12px 30px rgba(21, 21, 21, .08);
+      font-size: 14px;
+      color: var(--body-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .fs-chatbar .fs-send {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: none;
+    }
+
+    .fs-skillpills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 16px;
+    }
+
+    .fs-skillpills span {
+      background: #fff;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--heading);
+      box-shadow: 0 6px 16px rgba(21, 21, 21, .06);
+    }
+
+    /* Components mockup */
+    .fs-compgrid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .fs-compgrid div {
+      background: #fff;
+      border-radius: 8px;
+      height: 52px;
+      box-shadow: 0 6px 16px rgba(21, 21, 21, .06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fs-compgrid div::after {
+      content: '';
+      width: 60%;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--panel);
+    }
+
+    .fs-compgrid div:nth-child(4n+1)::after {
+      background: var(--accent);
+      opacity: .25;
+    }
+
+    /* Tech stacks mockup */
+    .fs-stackrow {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .fs-stackrow div {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 10px 24px rgba(21, 21, 21, .08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Techy Face Recognition Animation */
+    .techy-face-container {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin: 40px auto 0;
+      border-radius: 50%;
+      border: 1px dashed rgba(10, 79, 223, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: spin-slow 20s linear infinite;
+      box-shadow: 0 0 40px rgba(10, 79, 223, 0.1);
+    }
+
+    .techy-face-inner {
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(10, 79, 223, 0.08) 0%, transparent 70%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: spin-slow 15s linear infinite reverse;
+    }
+
+    .techy-face-svg {
+      width: 120px;
+      height: 120px;
+      color: #0a4fdf;
+      position: relative;
+      z-index: 2;
+      filter: drop-shadow(0 0 10px rgba(10, 79, 223, 0.4));
+      animation: spin-slow 20s linear infinite reverse;
+    }
+
+    .scanner-line {
+      position: absolute;
+      left: 15%;
+      right: 15%;
+      height: 2px;
+      background: #00e5ff;
+      box-shadow: 0 0 15px 2px #00e5ff;
+      z-index: 3;
+      animation: scan-face 3s ease-in-out infinite alternate;
+    }
+
+    .techy-points {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      z-index: 4;
+      animation: spin-slow 20s linear infinite reverse;
+    }
+
+    .techy-point {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #fff;
+      border: 1px solid #0a4fdf;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00e5ff;
+      animation: blink-point 2s infinite alternate;
+    }
+
+    .techy-data {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(10, 79, 223, 0.2);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #0a4fdf;
+      box-shadow: 0 8px 20px rgba(10, 79, 223, 0.15);
+      font-family: 'Satoshi', ui-sans-serif, system-ui, sans-serif;
+      z-index: 5;
+      white-space: nowrap;
+      animation: spin-slow 20s linear infinite reverse;
+    }
+
+    .data-left {
+      top: 20%;
+      left: -20px;
+      animation: float-up-down 4s ease-in-out infinite;
+    }
+
+    .data-right {
+      bottom: 20%;
+      right: -30px;
+      color: #10b981;
+      border-color: rgba(16, 185, 129, 0.3);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.15);
+      animation: float-up-down 4s ease-in-out infinite 1s;
+    }
+
+    .data-bottom {
+      bottom: -10px;
+      left: 50%;
+      margin-left: -40px;
+      background: #0a4fdf;
+      color: #fff;
+      border: none;
+      box-shadow: 0 0 20px rgba(10, 79, 223, 0.4);
+      animation: spin-slow 20s linear infinite reverse, pulse-glow 2s infinite alternate;
+    }
+
+    @keyframes scan-face {
+      0% {
+        top: 20%;
+        opacity: 0;
+      }
+
+      15% {
+        opacity: 1;
+      }
+
+      85% {
+        opacity: 1;
+      }
+
+      100% {
+        top: 80%;
+        opacity: 0;
+      }
+    }
+
+    @keyframes blink-point {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 0.3;
+      }
+
+      50% {
+        transform: scale(1.6);
+        opacity: 1;
+      }
+    }
+
+    @keyframes spin-slow {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes pulse-glow {
+      0% {
+        box-shadow: 0 0 0 0 rgba(10, 79, 223, 0.4);
+      }
+
+      100% {
+        box-shadow: 0 0 0 20px rgba(10, 79, 223, 0);
+      }
+    }
+
+    @keyframes float-up-down {
+
+      0%,
+      100% {
+        transform: translateY(0) translateX(var(--tx, 0));
+      }
+
+      50% {
+        transform: translateY(-10px) translateX(var(--tx, 0));
+      }
+    }
+
+    /* Scroll-linked video section */
+    .scroll-video-pin {
+      height: 300vh;
+      position: relative;
+    }
+
+    .scroll-video-container {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      width: 100%;
+      overflow: hidden;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scroll-video {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scroll-video-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0) 100%);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .scroll-video-text {
+      position: absolute;
+      left: 8%;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      color: #fff;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 24px;
+      padding: 0 20px;
+      max-width: 650px;
+    }
+
+    .scroll-video-text h1 {
+      font-size: clamp(48px, 6vw, 84px);
+      font-weight: 900;
+      font-family: 'Satoshi', ui-sans-serif, system-ui, sans-serif;
+      margin: 0;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .scroll-video-text h1 span {
+      background: linear-gradient(90deg, #fff, #b7c5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .scroll-video-text p {
+      font-size: clamp(16px, 1.5vw, 20px);
+      font-weight: 400;
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      margin: 0;
+      opacity: 0.85;
+      line-height: 1.6;
+      border-left: 3px solid #0a4fdf;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="scroll-video-pin">
+    <div class="scroll-video-container">
+      <canvas id="bg-canvas" class="scroll-video"></canvas>
+      <div class="scroll-video-overlay"></div>
+      <div class="scroll-video-text">
+        <h1>The Future<br><span>of Identity.</span></h1>
+        <p>Hyper-i is the next generation of touchless biometric verification. We help enterprises authenticate users
+          securely and seamlessly, eliminating passwords while putting privacy first.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-pin">
+    <section class="hero">
+      <div class="stage" aria-hidden="true">
+        <svg class="rings" viewBox="-600 -337.5 1200 675" preserveAspectRatio="xMidYMid meet" focusable="false">
+          <defs>
+            <linearGradient id="hpx-ring-fade" gradientUnits="objectBoundingBox" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#b7c5e1" stop-opacity="0"></stop>
+              <stop offset="0.5" stop-color="#b7c5e1" stop-opacity="0.7"></stop>
+              <stop offset="1" stop-color="#b7c5e1" stop-opacity="0"></stop>
+            </linearGradient>
+            <linearGradient id="hpx-accent-gradient" gradientUnits="objectBoundingBox" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#2d63e6" stop-opacity="1"></stop>
+              <stop offset="1" stop-color="#6c95e5" stop-opacity="0"></stop>
+            </linearGradient>
+          </defs>
+          <circle class="ring" cx="0" cy="0" r="400"></circle>
+          <circle class="ring" cx="0" cy="0" r="480"></circle>
+          <circle class="ring" cx="0" cy="0" r="560"></circle>
+          <circle class="ring" cx="0" cy="0" r="640"></circle>
+          <path class="ring-accent" d="M -476.42 58.5 A 480 480 0 0 1 -476.42 -58.5"></path>
+          <path class="ring-accent" d="M 476.42 -58.5 A 480 480 0 0 1 476.42 58.5"></path>
+        </svg>
+
+        <!-- Ring r=400 -->
+        <div class="orbit-logo" style="--r:400px;--a:170deg;--dir:1;--size:72px;--swap:0.02;--lean:0%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Face Biometrics</title>
+            <defs>
+              <linearGradient id="g-face" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0a5cff" />
+                <stop offset="100%" stop-color="#7c3aed" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-face)" />
+            <path
+              d="M8 8V6.5A1.5 1.5 0 0 1 9.5 5H11M16 8V6.5A1.5 1.5 0 0 0 14.5 5H13M8 16v1.5A1.5 1.5 0 0 0 9.5 19H11M16 16v1.5a1.5 1.5 0 0 1-1.5 1.5H13"
+              stroke="#fff" stroke-width="1.3" stroke-linecap="round" />
+            <circle cx="12" cy="12" r="2.6" stroke="#fff" stroke-width="1.3" />
+          </svg>
+          <span class="orbit-name">Face Biometrics</span>
+        </div>
+        <div class="orbit-logo" style="--r:400px;--a:10deg;--dir:1;--size:72px;--swap:0.13;--lean:-100%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Customer Trust</title>
+            <defs>
+              <linearGradient id="g-cust" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#10b981" />
+                <stop offset="100%" stop-color="#0a5cff" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-cust)" />
+            <circle cx="12" cy="9.8" r="2.9" stroke="#fff" stroke-width="1.4" />
+            <path d="M6.3 18c.9-2.9 3.2-4.4 5.7-4.4s4.8 1.5 5.7 4.4" stroke="#fff" stroke-width="1.4"
+              stroke-linecap="round" />
+          </svg>
+          <span class="orbit-name">Customer Trust</span>
+        </div>
+
+        <!-- Ring r=480 -->
+        <div class="orbit-logo" style="--r:480px;--a:220deg;--dir:-1;--size:72px;--swap:0.14;--lean:0%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Liveness Detection</title>
+            <defs>
+              <linearGradient id="g-live" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#06b6d4" />
+                <stop offset="100%" stop-color="#0a5cff" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-live)" />
+            <path d="M4.5 12.5s3-4.6 7.5-4.6 7.5 4.6 7.5 4.6-3 4.6-7.5 4.6-7.5-4.6-7.5-4.6z" stroke="#fff"
+              stroke-width="1.4" />
+            <circle cx="12" cy="12.5" r="2" fill="#fff" />
+          </svg>
+          <span class="orbit-name">Liveness Detection</span>
+        </div>
+        <div class="orbit-logo" style="--r:480px;--a:-40deg;--dir:-1;--size:72px;--swap:0.35;--lean:-100%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Business Trust</title>
+            <defs>
+              <linearGradient id="g-biz" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#1e293b" />
+                <stop offset="100%" stop-color="#0a5cff" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-biz)" />
+            <rect x="6.2" y="10" width="11.6" height="7.6" rx="1.4" stroke="#fff" stroke-width="1.3" />
+            <path d="M9.5 10V8.3A1.6 1.6 0 0 1 11.1 6.7h1.8a1.6 1.6 0 0 1 1.6 1.6V10" stroke="#fff"
+              stroke-width="1.3" />
+            <circle cx="12" cy="13.8" r="1" fill="#fbbf24" />
+          </svg>
+          <span class="orbit-name">Business Trust</span>
+        </div>
+        <div class="orbit-logo" style="--r:480px;--a:150deg;--dir:-1;--size:72px;--swap:0.22;--lean:0%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Document &amp; OCR</title>
+            <defs>
+              <linearGradient id="g-doc" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0a5cff" />
+                <stop offset="100%" stop-color="#2563eb" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-doc)" />
+            <rect x="6.5" y="5.5" width="11" height="13" rx="1.4" stroke="#fff" stroke-width="1.3" />
+            <path d="M9 9.5h6M9 12.5h6M9 15.5h3.5" stroke="#fff" stroke-width="1.3" stroke-linecap="round" />
+          </svg>
+          <span class="orbit-name">Document &amp; OCR</span>
+        </div>
+        <div class="orbit-logo" style="--r:480px;--a:40deg;--dir:-1;--size:72px;--swap:0.02;--lean:-100%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Workforce Trust</title>
+            <defs>
+              <linearGradient id="g-work" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#10b981" />
+                <stop offset="100%" stop-color="#059669" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-work)" />
+            <circle cx="9" cy="9.3" r="2.3" stroke="#fff" stroke-width="1.3" />
+            <circle cx="15.3" cy="10.1" r="1.9" stroke="#fff" stroke-width="1.2" />
+            <path d="M4.8 18c.7-2.6 2.6-4 4.2-4s3.5 1.4 4.2 4" stroke="#fff" stroke-width="1.3"
+              stroke-linecap="round" />
+            <path d="M14.8 14.3c1.7.2 3 1.5 3.5 3.7" stroke="#fff" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+          <span class="orbit-name">Workforce Trust</span>
+        </div>
+
+        <!-- Ring r=560 -->
+        <div class="orbit-logo" style="--r:560px;--a:180deg;--dir:1;--size:72px;--swap:0.17;--lean:0%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Deepfake Detection</title>
+            <defs>
+              <linearGradient id="g-deep" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#7c3aed" />
+                <stop offset="100%" stop-color="#4338ca" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-deep)" />
+            <path d="M12 5.5l5.5 2.3v4.4c0 3.5-2.3 5.9-5.5 6.9-3.2-1-5.5-3.4-5.5-6.9V7.8L12 5.5z" stroke="#fff"
+              stroke-width="1.3" />
+            <path d="M9.6 12.2l1.6 1.6 3.2-3.4" stroke="#fff" stroke-width="1.3" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+          <span class="orbit-name">Deepfake Detection</span>
+        </div>
+        <div class="orbit-logo" style="--r:560px;--a:0deg;--dir:1;--size:72px;--swap:0.13;--lean:-100%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Agentic Trust</title>
+            <defs>
+              <linearGradient id="g-agent" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#a855f7" />
+                <stop offset="100%" stop-color="#ec4899" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-agent)" />
+            <rect x="6.8" y="9.5" width="10.4" height="8" rx="2.2" stroke="#fff" stroke-width="1.3" />
+            <circle cx="9.7" cy="13.3" r="1" fill="#fff" />
+            <circle cx="14.3" cy="13.3" r="1" fill="#fff" />
+            <path d="M12 9.5V7M10.3 7h3.4" stroke="#fff" stroke-width="1.3" stroke-linecap="round" />
+          </svg>
+          <span class="orbit-name">Agentic Trust</span>
+        </div>
+
+        <!-- Ring r=640 -->
+        <div class="orbit-logo" style="--r:640px;--a:195deg;--dir:-1;--size:72px;--swap:0.39;--lean:0%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Fraud Intelligence Network</title>
+            <defs>
+              <linearGradient id="g-net" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0a5cff" />
+                <stop offset="100%" stop-color="#06b6d4" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-net)" />
+            <path d="M6.5 7.5L11 11.2M17.5 7.5L13 11.2M6.5 17L11 13.2M17.5 17L13 13.2" stroke="#fff"
+              stroke-width="1.2" />
+            <circle cx="6.5" cy="7.5" r="1.7" fill="#fff" />
+            <circle cx="17.5" cy="7.5" r="1.7" fill="#fff" />
+            <circle cx="6.5" cy="17" r="1.7" fill="#fff" />
+            <circle cx="17.5" cy="17" r="1.7" fill="#fff" />
+            <circle cx="12" cy="12.2" r="2.1" fill="#fff" />
+          </svg>
+          <span class="orbit-name">Fraud Intelligence Network</span>
+        </div>
+        <div class="orbit-logo" style="--r:640px;--a:-15deg;--dir:-1;--size:72px;--swap:0.05;--lean:-100%;">
+          <svg class="mark" viewBox="0 0 24 24" fill="none">
+            <title>Age Verification</title>
+            <defs>
+              <linearGradient id="g-age" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#10b981" />
+                <stop offset="100%" stop-color="#22c55e" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#g-age)" />
+            <rect x="5.5" y="7" width="13" height="10" rx="1.6" stroke="#fff" stroke-width="1.3" />
+            <circle cx="9" cy="11.6" r="1.6" stroke="#fff" stroke-width="1.2" />
+            <path d="M7 15c.4-1.1 1.3-1.6 2-1.6s1.6.5 2 1.6" stroke="#fff" stroke-width="1.2" stroke-linecap="round" />
+            <text x="12.6" y="13.4" font-size="4.3" font-weight="700" fill="#fff">18+</text>
+          </svg>
+          <span class="orbit-name">Age Verification</span>
+        </div>
+      </div>
+
+      <div class="content">
+        <h1 class="headlines">
+          <div id="gravity-container" style="position:relative; width:100%; height:90px; margin-top:4px;">
+            <canvas id="gravity-canvas"
+              style="position:absolute; top:0; left:0; width:100%; height:100%; cursor:none;"></canvas>
+          </div>
+        </h1>
+        <p class="body-copy">
+          Experience the future of authentication. Our advanced biometric verification ensures fast, secure, and
+          frictionless access—protecting both businesses and users with enterprise-grade accuracy.
+        </p>
+        <div class="cta-row">
+          <button type="button" class="btn is-primary">Book a Demo</button>
+          <a href="#" class="btn is-outline">Explore Tech</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="feature-story">
+    <div class="fs-inner">
+      <aside class="fs-sidebar">
+        <div class="sidebar-anim">
+          <div class="sa-ring"></div>
+          <div class="sa-ring sa-ring-2"></div>
+          <svg class="sa-icon" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <linearGradient id="sa-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0a4fdf" />
+                <stop offset="100%" stop-color="#00e5ff" />
+              </linearGradient>
+            </defs>
+            <path d="M12 4.5C6.5 4.5 2 12 2 12s4.5 7.5 10 7.5 10-7.5 10-7.5-4.5-7.5-10-7.5z" stroke="url(#sa-grad)"
+              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="12" cy="12" r="3" stroke="url(#sa-grad)" stroke-width="1.8" />
+          </svg>
+        </div>
+        <h2>The future of identity is touchless and instantaneous.</h2>
+        <p>Hyper-i provides a complete suite of AI-driven biometric and document verification tools to onboard users,
+          prevent fraud, and ensure compliance without compromising the user experience.</p>
+        <nav class="fs-nav">
+          <a href="#fs-biometrics"><span class="dot"></span>Face Biometrics</a>
+          <a href="#fs-liveness"><span class="dot"></span>Liveness & Deepfakes</a>
+          <a href="#fs-ocr"><span class="dot"></span>Document OCR</a>
+          <a href="#fs-fraud"><span class="dot"></span>Fraud Intelligence</a>
+          <a href="#fs-age"><span class="dot"></span>Age Verification</a>
+        </nav>
+      </aside>
+
+      <div class="fs-stories">
+        <article class="fs-story" id="fs-biometrics">
+          <div class="fs-preview">
+            <div class="bg-grid"></div>
+            <div class="scan-line-wide"></div>
+            <div class="bio-card-left">Left Iris: Scanned</div>
+            <div class="bio-card-right">Match: 99.98%</div>
+            <div class="bio-scanner">
+              <div class="bio-core" style="animation: pulse-glow 2s infinite alternate reverse;">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none"
+                  style="animation: spin-slow 10s linear infinite reverse;">
+                  <circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="1.5" />
+                  <path
+                    d="M8 9V7.5A1.5 1.5 0 0 1 9.5 6H11M16 9V7.5A1.5 1.5 0 0 0 14.5 6H13M8 15v1.5A1.5 1.5 0 0 0 9.5 18H11M16 15v1.5a1.5 1.5 0 0 1-1.5 1.5H13"
+                    stroke="#fff" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <h3>3D Face Biometrics</h3>
+          <p>Verify users instantly with enterprise-grade facial recognition that maps millions of data points to ensure
+            precise, touchless matching in under 2 seconds.</p>
+          <div class="fs-tags">Touchless<span>•</span>High Accuracy<span>•</span>&lt;2s Match</div>
+        </article>
+
+        <article class="fs-story" id="fs-liveness">
+          <div class="fs-preview">
+            <div class="bg-grid"></div>
+            <div class="fs-colorcard live-main">
+              <div
+                style="font-size:14px; font-weight:600; color:var(--heading); margin-bottom:16px; display:flex; justify-content:space-between;">
+                Active Liveness Check <span
+                  style="width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 10px #10b981; animation:pulse-glow 1.5s infinite;"></span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--body-subtle);">
+                  <span>Deepfake Score</span><span style="color:#10b981; font-weight:600;">0.01%</span>
+                </div>
+                <div style="height:6px; background:var(--panel); border-radius:4px; overflow:hidden;">
+                  <div class="live-bar-fill" style="--fill:5%;"></div>
+                </div>
+                <div
+                  style="display:flex; justify-content:space-between; font-size:12px; color:var(--body-subtle); margin-top:8px;">
+                  <span>Presentation Attack</span><span style="color:#10b981; font-weight:600;">Clear</span>
+                </div>
+                <div style="height:6px; background:var(--panel); border-radius:4px; overflow:hidden;">
+                  <div class="live-bar-fill" style="--fill:98%; animation-delay:0.2s;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="live-card-2">
+              <div style="font-size:11px; color:var(--body-subtle); margin-bottom:4px;">Spoof Risk</div>
+              <div style="font-size:18px; font-weight:700; color:var(--heading);">Minimal</div>
+              <svg viewBox="0 0 100 30" style="margin-top:10px; width:100%; height:30px;">
+                <path d="M0 25 Q20 5 40 20 T80 10 T100 15" fill="none" stroke="#0a4fdf" stroke-width="2" />
+                <path d="M0 25 Q20 5 40 20 T80 10 T100 15" fill="none" stroke="rgba(10,79,223,0.3)" stroke-width="6"
+                  style="filter:blur(2px);" />
+              </svg>
+            </div>
+          </div>
+          <h3>Anti-Spoofing & Deepfake Defense</h3>
+          <p>Defeat presentation attacks, printed masks, and deepfakes with advanced active and passive liveness checks
+            powered by generative AI detection models.</p>
+          <div class="fs-tags">ISO 30107-3 Certified<span>•</span>iBeta Level 2</div>
+        </article>
+
+        <article class="fs-story" id="fs-ocr">
+          <div class="fs-preview">
+            <div class="bg-grid"></div>
+            <div class="ocr-pill ocr-pill-1">Hologram: Valid</div>
+            <div class="ocr-pill ocr-pill-2">MRZ: Extracted</div>
+            <div class="ocr-id">
+              <div class="ocr-laser"></div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:20px; align-items:center;">
+                <div style="font-size:16px; font-weight:700;">Driver's License</div>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+                  <rect x="3" y="6" width="18" height="12" rx="2" stroke="#00e5ff" stroke-width="1.5" />
+                  <circle cx="8" cy="12" r="2" stroke="#00e5ff" stroke-width="1.5" />
+                  <path d="M14 10h4M14 14h4" stroke="#00e5ff" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div
+                style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:4px; margin-bottom:12px;">
+              </div>
+              <div
+                style="width:70%; height:6px; background:rgba(255,255,255,0.1); border-radius:4px; margin-bottom:12px;">
+              </div>
+              <div style="width:40%; height:6px; background:rgba(255,255,255,0.1); border-radius:4px;"></div>
+            </div>
+          </div>
+          <h3>Document Verification (OCR)</h3>
+          <p>Automatically extract and validate data from 10,000+ global ID types, passports, and driver's licenses with
+            instant holographic and security feature checks.</p>
+          <div class="fs-tags">10,000+ IDs<span>•</span>Global Coverage<span>•</span>Instant Extraction</div>
+        </article>
+
+        <article class="fs-story" id="fs-fraud">
+          <div class="fs-preview">
+            <div class="bg-grid"></div>
+            <!-- Graph Nodes -->
+            <div class="fraud-node" style="top: 25%; left: 25%; animation-delay: 0s;"></div>
+            <div class="fraud-node" style="top: 20%; right: 30%; animation-delay: 0.5s;"></div>
+            <div class="fraud-node" style="bottom: 25%; left: 30%; animation-delay: 1s;"></div>
+            <div class="fraud-node" style="bottom: 20%; right: 25%; animation-delay: 1.5s;"></div>
+
+            <div class="fraud-main">
+              <div class="fs-chatbar"
+                style="background:#1e293b; color:#94a3b8; width:100%; max-width:none; justify-content:center;">
+                <span style="display:flex; align-items:center; gap:8px;"><span
+                    style="width:10px; height:10px; border-radius:50%; background:#10b981; box-shadow:0 0 12px #10b981;"></span>
+                  Network Status: Secure</span>
+              </div>
+              <div class="fs-skillpills" style="margin-top:0;">
+                <span style="background:rgba(10,79,223,0.1); color:#0a4fdf; box-shadow:none;">AML Checked</span>
+                <span style="background:rgba(10,79,223,0.1); color:#0a4fdf; box-shadow:none;">KYC Validated</span>
+                <span style="background:rgba(10,79,223,0.1); color:#0a4fdf; box-shadow:none;">PEP Cleared</span>
+              </div>
+            </div>
+          </div>
+          <h3>Fraud Intelligence Network</h3>
+          <p>Cross-reference identities against global watchlists, PEPs, and sanctions in real-time. Detect synthetic
+            identities and stop fraud rings before they enter your ecosystem.</p>
+          <div class="fs-tags">AML/KYC<span>•</span>Sanctions Watchlists<span>•</span>Real-time</div>
+        </article>
+
+        <article class="fs-story" id="fs-age">
+          <div class="fs-preview">
+            <div class="fs-stackrow" style="gap:24px;">
+              <div style="width:80px; height:80px; background:#10b981; color:#fff; flex-direction:column; gap:4px;">
+                <span style="font-size:24px; font-weight:800; font-family:'Satoshi',sans-serif;">18+</span>
+                <span style="font-size:10px; font-weight:600; opacity:0.9;">VERIFIED</span>
+              </div>
+              <div
+                style="width:80px; height:80px; background:#fff; border:2px solid #e2e8f0; color:var(--heading); flex-direction:column; gap:4px;">
+                <span style="font-size:24px; font-weight:800; font-family:'Satoshi',sans-serif;">21+</span>
+                <span style="font-size:10px; font-weight:600; color:var(--body-subtle);">LOCKED</span>
+              </div>
+            </div>
+          </div>
+          <h3>Seamless Age Verification</h3>
+          <p>Ensure compliance with strict age restrictions for gaming, gambling, and age-gated commerce without
+            requiring physical ID uploads where facial age estimation suffices.</p>
+          <div class="fs-tags">GDPR Compliant<span>•</span>Frictionless<span>•</span>Age Estimation</div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <style>
+    /* ---------- Horizontal Scroll Section ---------- */
+    .hs-wrapper {
+      background: #060606;
+      color: #fff;
+    }
+
+    .hs-pin {
+      height: 140vh;
+      position: relative;
+    }
+
+    .hs-container {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 0;
+      box-sizing: border-box;
+    }
+
+    .hs-header {
+      padding: 0 40px;
+      margin-bottom: 40px;
+      flex-shrink: 0;
+    }
+
+    .hs-subtitle {
+      color: #CDD7FB;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .hs-title {
+      font-size: 56px;
+      line-height: 1.1;
+      font-weight: 400;
+      font-family: 'Satoshi', ui-sans-serif, system-ui, sans-serif;
+      margin: 0;
+    }
+
+    .hs-title em {
+      color: #CDD7FB;
+      font-style: italic;
+    }
+
+    .hs-track {
+      display: flex;
+      gap: 24px;
+      padding: 0 40px;
+      width: max-content;
+      will-change: transform;
+    }
+
+    .hs-card {
+      position: relative;
+      width: 360px;
+      height: 520px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 32px;
+      flex-shrink: 0;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .hs-card-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .hs-card-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.4) 40%, rgba(0, 0, 0, 0) 100%);
+    }
+
+    .hs-badge {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      z-index: 2;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .hs-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .hs-metric {
+      font-size: 56px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .hs-metric-sub {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.8;
+      margin-bottom: 24px;
+    }
+
+    .hs-proj-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .hs-proj-desc {
+      font-size: 14px;
+      line-height: 1.5;
+      opacity: 0.8;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+
+    .hs-link {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      text-decoration: none;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hs-link:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 900px) {
+      .hs-pin {
+        height: auto;
+      }
+
+      .hs-container {
+        position: static;
+        height: auto;
+        padding: 60px 0;
+      }
+
+      .hs-track {
+        flex-direction: column;
+        width: 100%;
+        padding: 0 20px;
+      }
+
+      .hs-card {
+        width: 100%;
+        height: 420px;
+      }
+    }
+  </style>
+
+  <section class="hs-wrapper">
+    <div class="hs-pin">
+      <div class="hs-container">
+        <div class="hs-header">
+          <div class="hs-subtitle">Capabilities</div>
+          <h2 class="hs-title">Explore our <br><em>Use Cases.</em></h2>
+        </div>
+
+        <div class="hs-track">
+          <!-- Card 1 -->
+          <div class="hs-card">
+            <div class="hs-card-bg"
+              style="background-image: linear-gradient(to bottom, rgba(131,37,115,0.4), rgba(131,37,115,0.9)), url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=800&auto=format&fit=crop');">
+            </div>
+            <div class="hs-card-overlay"></div>
+            <div class="hs-badge">COMPLIANCE • SECURITY</div>
+            <div class="hs-content">
+              <div class="hs-metric" style="color:#CDD7FB;">01</div>
+              <div class="hs-metric-sub">REGULATORY COMPLIANCE</div>
+              <h3 class="hs-proj-title">KYC/AML compliance</h3>
+              <p class="hs-proj-desc">Ensure your business stays compliant with strict global regulations through
+                automated, real-time identity checks and risk screening.</p>
+              <a href="#" class="hs-link">LEARN MORE &rarr;</a>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="hs-card">
+            <div class="hs-card-bg"
+              style="background-image: linear-gradient(to bottom, rgba(59,130,246,0.3), rgba(59,130,246,0.8)), url('https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=800&auto=format&fit=crop');">
+            </div>
+            <div class="hs-card-overlay"></div>
+            <div class="hs-badge">BIOMETRICS • AUTH</div>
+            <div class="hs-content">
+              <div class="hs-metric" style="color:#60a5fa;">02</div>
+              <div class="hs-metric-sub">CORE IDENTITY</div>
+              <h3 class="hs-proj-title">Identity Verification (IDV)</h3>
+              <p class="hs-proj-desc">Instantly verify true identities across borders with state-of-the-art liveness
+                detection and facial recognition technology.</p>
+              <a href="#" class="hs-link">LEARN MORE &rarr;</a>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="hs-card">
+            <div class="hs-card-bg"
+              style="background-image: linear-gradient(to bottom, rgba(16,185,129,0.3), rgba(16,185,129,0.8)), url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop');">
+            </div>
+            <div class="hs-card-overlay"></div>
+            <div class="hs-badge">FRICTIONLESS • ONBOARDING</div>
+            <div class="hs-content">
+              <div class="hs-metric" style="color:#34d399;">03</div>
+              <div class="hs-metric-sub">SEAMLESS ONBOARDING</div>
+              <h3 class="hs-proj-title">Non-Document Verification</h3>
+              <p class="hs-proj-desc">Verify users accurately without requiring physical IDs by leveraging advanced
+                database checks and biometric anchors.</p>
+              <a href="#" class="hs-link">LEARN MORE &rarr;</a>
+            </div>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="hs-card">
+            <div class="hs-card-bg"
+              style="background-image: linear-gradient(to bottom, rgba(245,158,11,0.3), rgba(245,158,11,0.8)), url('https://images.unsplash.com/photo-1557672172-298e090bd0f1?q=80&w=800&auto=format&fit=crop');">
+            </div>
+            <div class="hs-card-overlay"></div>
+            <div class="hs-badge">B2B • CORPORATE</div>
+            <div class="hs-content">
+              <div class="hs-metric" style="color:#fbbf24;">04</div>
+              <div class="hs-metric-sub">CORPORATE ONBOARDING</div>
+              <h3 class="hs-proj-title">Know Your Business (KYB)</h3>
+              <p class="hs-proj-desc">Accelerate corporate onboarding and mitigate B2B risk with automated UBO
+                verification and corporate registry checks.</p>
+              <a href="#" class="hs-link">LEARN MORE &rarr;</a>
+            </div>
+          </div>
+
+          <!-- Card 5 -->
+          <div class="hs-card">
+            <div class="hs-card-bg"
+              style="background-image: linear-gradient(to bottom, rgba(236,72,153,0.3), rgba(236,72,153,0.8)), url('https://images.unsplash.com/photo-1573164713988-8665fc963095?q=80&w=800&auto=format&fit=crop');">
+            </div>
+            <div class="hs-card-overlay"></div>
+            <div class="hs-badge">PROTECTION • MINORS</div>
+            <div class="hs-content">
+              <div class="hs-metric" style="color:#f472b6;">05</div>
+              <div class="hs-metric-sub">TRUST & SAFETY</div>
+              <h3 class="hs-proj-title">Age Assurance</h3>
+              <p class="hs-proj-desc">Protect minors and comply with age-gating regulations instantly through precise,
+                privacy-preserving age estimation.</p>
+              <a href="#" class="hs-link">LEARN MORE &rarr;</a>
+            </div>
+          </div>
+
+          <!-- Card 6 -->
+          <div class="hs-card">
+            <div class="hs-card-bg"
+              style="background-image: linear-gradient(to bottom, rgba(14,165,233,0.3), rgba(14,165,233,0.8)), url('https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=800&auto=format&fit=crop');">
+            </div>
+            <div class="hs-card-overlay"></div>
+            <div class="hs-badge">HR • RECRUITMENT</div>
+            <div class="hs-content">
+              <div class="hs-metric" style="color:#38bdf8;">06</div>
+              <div class="hs-metric-sub">WORKFORCE TRUST</div>
+              <h3 class="hs-proj-title">Candidate Verification</h3>
+              <p class="hs-proj-desc">Streamline HR processes by verifying candidate identities remotely, securing the
+                hiring pipeline against synthetic fraud.</p>
+              <a href="#" class="hs-link">LEARN MORE &rarr;</a>
+            </div>
+          </div>
+
+          <!-- Card 7 -->
+          <div class="hs-card">
+            <div class="hs-card-bg"
+              style="background-image: linear-gradient(to bottom, rgba(139,92,246,0.3), rgba(139,92,246,0.8)), url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=800&auto=format&fit=crop');">
+            </div>
+            <div class="hs-card-overlay"></div>
+            <div class="hs-badge">WEB3 • ECOSYSTEMS</div>
+            <div class="hs-content">
+              <div class="hs-metric" style="color:#a78bfa;">07</div>
+              <div class="hs-metric-sub">FUTURE IDENTITY</div>
+              <h3 class="hs-proj-title">Digital ID Verification</h3>
+              <p class="hs-proj-desc">Empower users with reusable, verifiable digital credentials that enable one-click
+                access to future digital ecosystems.</p>
+              <a href="#" class="hs-link">LEARN MORE &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    var pin = document.querySelector('.hero-pin');
+    var stage = document.querySelector('.stage');
+
+    function updateProgress() {
+      var total = pin.offsetHeight - window.innerHeight;
+      var scrolled = -pin.getBoundingClientRect().top;
+      var progress = total > 0 ? Math.min(1, Math.max(0, scrolled / total)) : 0;
+      stage.style.setProperty('--progress', progress);
+    }
+
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+    updateProgress();
+
+    var storyObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+        }
+      });
+    }, { threshold: 0.2 });
+
+    document.querySelectorAll('.fs-story').forEach(function (story) {
+      storyObserver.observe(story);
+    });
+
+    // Horizontal Scroll Logic
+    var hsPin = document.querySelector('.hs-pin');
+    var hsTrack = document.querySelector('.hs-track');
+
+    function updateHorizontalScroll() {
+      if (!hsPin || !hsTrack) return;
+      var rect = hsPin.getBoundingClientRect();
+      var top = rect.top;
+      var scrollHeight = hsPin.offsetHeight - window.innerHeight;
+      var progress = 0;
+      if (top < 0) {
+        progress = Math.min(1, Math.max(0, -top / scrollHeight));
+      }
+      // Track width minus window width plus some padding
+      var maxTranslate = hsTrack.scrollWidth - window.innerWidth + 80;
+      if (maxTranslate > 0) {
+        hsTrack.style.transform = 'translateX(' + (-progress * maxTranslate) + 'px)';
+      }
+    }
+
+    window.addEventListener('scroll', updateHorizontalScroll, { passive: true });
+    window.addEventListener('resize', updateHorizontalScroll);
+    updateHorizontalScroll();
+
+    // --- Gravity Text Animation ---
+    const gravCanvas = document.getElementById('gravity-canvas');
+    const gravContainer = document.getElementById('gravity-container');
+    const gctx = gravCanvas.getContext('2d');
+
+    const LINE1 = "Meet Hyper-i.";
+    const GRID = 4;
+    const DOT_SIZE = 2;
+    const REPEL_RADIUS = 80;
+    const REPEL_STRENGTH = 40;
+    const EASE = 0.14;
+    const MOUSE_EASE = 0.22;
+
+    let gDots = [];
+    let gMouse = { x: -9999, y: -9999 };
+    let gMouseSmooth = { x: -9999, y: -9999 };
+    let dpr = Math.max(1, window.devicePixelRatio || 1);
+    let gW, gH;
+
+    function hexToRgb(hex) {
+      const v = parseInt(hex.slice(1), 16);
+      return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
+    }
+    function lerpColor(c1, c2, t) {
+      return {
+        r: Math.round(c1.r + (c2.r - c1.r) * t),
+        g: Math.round(c1.g + (c2.g - c1.g) * t),
+        b: Math.round(c1.b + (c2.b - c1.b) * t)
+      };
+    }
+
+    // SWSAM Colors: Magenta (#832573) to Light Blue (#CDD7FB)
+    const line1Stops = [hexToRgb('#832573'), hexToRgb('#b564aa'), hexToRgb('#CDD7FB')];
+
+    function colorAtT(stops, t) {
+      const seg = t * (stops.length - 1);
+      const i = Math.min(stops.length - 2, Math.floor(seg));
+      const localT = seg - i;
+      return lerpColor(stops[i], stops[i + 1], localT);
+    }
+
+    function buildDots() {
+      gDots = [];
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = gW;
+      offCanvas.height = gH;
+      const octx = offCanvas.getContext('2d');
+
+      const fontSize = Math.min(gW * 0.15, 68);
+      octx.textAlign = 'center';
+      octx.textBaseline = 'middle';
+      octx.font = `900 ${fontSize}px 'Satoshi', ui-sans-serif, system-ui, sans-serif`;
+
+      const centerX = gW / 2;
+      const line1Y = gH / 2 + 4;
+
+      const w1 = octx.measureText(LINE1).width;
+
+      octx.fillStyle = '#fff';
+      octx.fillText(LINE1, centerX, line1Y);
+
+      const imgData = octx.getImageData(0, 0, gW, gH).data;
+
+      for (let y = 0; y < gH; y += GRID) {
+        for (let x = 0; x < gW; x += GRID) {
+          const idx = (y * gW + x) * 4;
+          const alpha = imgData[idx + 3];
+          if (alpha > 120) {
+            const t = Math.min(1, Math.max(0, (x - (centerX - w1 / 2)) / w1));
+            const c = colorAtT(line1Stops, t);
+            gDots.push({
+              baseX: x, baseY: y,
+              x: x, y: y,
+              r: c.r, g: c.g, b: c.b
+            });
+          }
+        }
+      }
+    }
+
+    function resizeGravity() {
+      if (!gravContainer) return;
+      gW = gravContainer.clientWidth;
+      gH = gravContainer.clientHeight;
+      gravCanvas.width = gW * dpr;
+      gravCanvas.height = gH * dpr;
+      gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildDots();
+    }
+
+    function animateGravity() {
+      gctx.clearRect(0, 0, gW, gH);
+
+      gMouseSmooth.x += (gMouse.x - gMouseSmooth.x) * MOUSE_EASE;
+      gMouseSmooth.y += (gMouse.y - gMouseSmooth.y) * MOUSE_EASE;
+
+      for (let i = 0; i < gDots.length; i++) {
+        const d = gDots[i];
+        const dx = d.x - gMouseSmooth.x;
+        const dy = d.y - gMouseSmooth.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        let targetX = d.baseX;
+        let targetY = d.baseY;
+
+        if (dist < REPEL_RADIUS && dist > 0.001) {
+          const force = (1 - dist / REPEL_RADIUS);
+          const nx = dx / dist;
+          const ny = dy / dist;
+          targetX = d.baseX + nx * force * REPEL_STRENGTH;
+          targetY = d.baseY + ny * force * REPEL_STRENGTH;
+        }
+
+        d.x += (targetX - d.x) * EASE;
+        d.y += (targetY - d.y) * EASE;
+
+        gctx.fillStyle = `rgb(${d.r}, ${d.g}, ${d.b})`;
+        gctx.beginPath();
+        gctx.arc(d.x, d.y, DOT_SIZE, 0, Math.PI * 2);
+        gctx.fill();
+      }
+
+      if (gMouseSmooth.x > -9000) {
+        gctx.beginPath();
+        gctx.fillStyle = '#CDD7FB';
+        gctx.shadowColor = '#CDD7FB';
+        gctx.shadowBlur = 12;
+        gctx.arc(gMouseSmooth.x, gMouseSmooth.y, 4, 0, Math.PI * 2);
+        gctx.fill();
+        gctx.shadowBlur = 0;
+      }
+
+      requestAnimationFrame(animateGravity);
+    }
+
+    window.addEventListener('resize', resizeGravity);
+
+    if (gravContainer) {
+      gravContainer.addEventListener('mousemove', (e) => {
+        const rect = gravContainer.getBoundingClientRect();
+        gMouse.x = e.clientX - rect.left;
+        gMouse.y = e.clientY - rect.top;
+      });
+      gravContainer.addEventListener('mouseleave', () => {
+        gMouse.x = -9999;
+        gMouse.y = -9999;
+      });
+      gravContainer.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 0) {
+          const rect = gravContainer.getBoundingClientRect();
+          gMouse.x = e.touches[0].clientX - rect.left;
+          gMouse.y = e.touches[0].clientY - rect.top;
+        }
+      }, { passive: true });
+
+      resizeGravity();
+      animateGravity();
+    }
+
+    // --- Scroll-Linked Canvas Video Logic ---
+    const bgCanvas = document.getElementById('bg-canvas');
+    const scrollVideoPin = document.querySelector('.scroll-video-pin');
+
+    if (bgCanvas && scrollVideoPin) {
+      const ctx = bgCanvas.getContext('2d');
+      const frameCount = 240;
+      const images = [];
+      let imagesLoaded = 0;
+
+      for (let i = 0; i < frameCount; i++) {
+        const img = new Image();
+        img.src = `assets/hero-frames/frame_${i.toString().padStart(4, '0')}.jpg?v=4`;
+        images.push(img);
+
+        img.onload = () => {
+          imagesLoaded++;
+          if (imagesLoaded === 1) {
+            resizeCanvas();
+            drawFrame(0);
+          }
+        };
+      }
+
+      function resizeCanvas() {
+        if (!images[0]) return;
+        bgCanvas.width = window.innerWidth;
+        bgCanvas.height = window.innerHeight;
+        updateVideoScroll();
+      }
+
+      function drawFrame(frameIndex) {
+        if (!images[frameIndex]) return;
+        const img = images[frameIndex];
+
+        const cw = bgCanvas.width;
+        const ch = bgCanvas.height;
+        if (cw === 0 || ch === 0) return;
+
+        const iw = img.width;
+        const ih = img.height;
+
+        const scale = Math.max(cw / iw, ch / ih);
+        const x = (cw / 2) - (iw / 2) * scale;
+        const y = (ch / 2) - (ih / 2) * scale;
+
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.drawImage(img, x, y, iw * scale, ih * scale);
+      }
+
+      function updateVideoScroll() {
+        const rect = scrollVideoPin.getBoundingClientRect();
+        const scrollHeight = scrollVideoPin.offsetHeight - window.innerHeight;
+
+        let progress = 0;
+        if (rect.top <= 0) {
+          progress = Math.min(1, Math.max(0, -rect.top / scrollHeight));
+        }
+
+        const frameIndex = Math.min(
+          frameCount - 1,
+          Math.floor(progress * frameCount)
+        );
+
+        requestAnimationFrame(() => drawFrame(frameIndex));
+      }
+
+      window.addEventListener('scroll', updateVideoScroll, { passive: true });
+      window.addEventListener('resize', resizeCanvas);
+    }
+  </script>
+
+</body>
+
+</html>
